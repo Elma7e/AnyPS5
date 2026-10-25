@@ -2,11 +2,15 @@
 #include "prx/libc/include/Api.hpp"
 #include "prx/libScePosixForWebKit/include/Api.hpp"
 #include "prx/libc/include/GuestArena.hpp"
+#include "prx/libc/include/General.hpp"
+#include "prx/libc/include/FilesystemError.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include "prx/libkernel/File/include/FileFlags.hpp"
 #include "prx/libkernel/Socket/include/SocketRuntime.hpp"
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
 #include <random>
 #include <string>
 #ifdef _WIN32
@@ -22,6 +26,11 @@ constexpr char Characters[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
 
 int Failure(int error) {
     *__error_nid_postfix() = error;
+    return -1;
+}
+
+int Failure(const std::error_code& error) {
+    *__error_nid_postfix() = FilesystemError(error);
     return -1;
 }
 
@@ -80,4 +89,73 @@ extern "C" int APS5_VABI isatty_nid_postfix(int descriptor) {
     Failure(errno == EBADF ? 9 : 25);
 #endif
     return 0;
+}
+
+extern "C" int APS5_VABI __wrap_link(const char* existing, const char* created) {
+    if (existing == nullptr || created == nullptr) return Failure(14);
+    if (*existing == '\0' || *created == '\0') return Failure(2);
+    std::filesystem::path resolvedExisting;
+    if (const int error = ResolvePathError_nid_no_patch(existing, resolvedExisting)) return Failure(error);
+    std::filesystem::path resolvedCreated;
+    if (const int error = ResolvePathError_nid_no_patch(created, resolvedCreated)) return Failure(error);
+#ifdef _WIN32
+    std::error_code error;
+    std::filesystem::create_hard_link(resolvedExisting, resolvedCreated, error);
+    if (error) return Failure(error);
+    return 0;
+#else
+    if (::link(resolvedExisting.c_str(), resolvedCreated.c_str()) != 0)
+        return Failure(std::error_code(errno, std::generic_category()));
+    return 0;
+#endif
+}
+
+extern "C" std::int64_t APS5_VABI __wrap_readlink(const char* path, char* buffer, std::size_t size) {
+    if (path == nullptr || buffer == nullptr) return Failure(14);
+    if (size == 0) return Failure(22);
+    const GuestArena::HostWrite destination(buffer, size);
+    if (!destination.Open()) return Failure(14);
+    std::filesystem::path resolved;
+    if (const int error = ResolvePathError_nid_no_patch(path, resolved)) return Failure(error);
+#ifdef _WIN32
+    std::error_code error;
+    const auto target = std::filesystem::read_symlink(resolved, error);
+    if (error) return Failure(error);
+    const auto targetString = target.string();
+    const auto toCopy = std::min(size, targetString.size());
+    std::memcpy(buffer, targetString.data(), toCopy);
+    return static_cast<std::int64_t>(toCopy);
+#else
+    const auto result = ::readlink(resolved.c_str(), buffer, size);
+    if (result < 0) return Failure(std::error_code(errno, std::generic_category()));
+    return static_cast<std::int64_t>(result);
+#endif
+}
+
+extern "C" int APS5_VABI __wrap_symlink(const char* target, const char* created) {
+    if (target == nullptr || created == nullptr) return Failure(14);
+    if (*target == '\0' || *created == '\0') return Failure(2);
+    const std::filesystem::path targetPath(target);
+    if (targetPath.has_root_name() || targetPath.has_root_directory()) {
+        NotImplemented_nid_no_patch("symlink: absolute targets");
+        return -1;
+    }
+    for (const auto& part : targetPath) {
+        if (part == "..") {
+            NotImplemented_nid_no_patch("symlink: parent-directory targets");
+            return -1;
+        }
+    }
+    std::filesystem::path resolvedCreated;
+    if (const int error = ResolvePathError_nid_no_patch(created, resolvedCreated)) return Failure(error);
+#ifdef _WIN32
+    std::error_code error;
+    std::filesystem::create_symlink(targetPath, resolvedCreated, error);
+    if (error) return Failure(error);
+    return 0;
+#else
+    if (::symlink(target, resolvedCreated.c_str()) != 0)
+        return Failure(std::error_code(errno, std::generic_category()));
+    return 0;
+#endif
 }

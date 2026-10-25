@@ -173,6 +173,55 @@ int main() {
     Require(mmap_nid_postfix(nullptr, page, 8, 0x1002, -1, 0) == failed && *__error_nid_postfix() == 22);
     *__error_nid_postfix() = 0;
     Require(__wrap_mmap(nullptr, page, 8, 0x1002, -1, 0) == failed && *__error_nid_postfix() == 22);
+    const std::string relativeTarget = pattern.substr(std::string("/anyps5-posix-test/").size());
+    const std::string relativeSymlinkPath = "/anyps5-posix-test/test-rel-symlink";
+    Require(__wrap_symlink(relativeTarget.c_str(), relativeSymlinkPath.c_str()) == 0);
+    std::array<char, 256> relLinkTarget{};
+    const auto relReadLength = __wrap_readlink(relativeSymlinkPath.c_str(), relLinkTarget.data(), relLinkTarget.size());
+    Require(relReadLength == static_cast<std::int64_t>(relativeTarget.size()));
+    Require(std::string_view(relLinkTarget.data(), relReadLength) == relativeTarget);
+    const int relFd = open_nid_postfix(relativeSymlinkPath.c_str(), 0, 0);
+    Require(relFd >= 0);
+    std::array<char, sizeof(payload)> symlinkPayload{};
+    Require(read_nid_postfix(relFd, symlinkPayload.data(), symlinkPayload.size()) == static_cast<std::int64_t>(sizeof(payload)));
+    Require(std::memcmp(payload, symlinkPayload.data(), sizeof(payload)) == 0);
+    Require(close_nid_postfix(relFd) == 0);
+    const auto hostSentinel = root.parent_path() / "anyps5-host-sentinel.txt";
+    std::ofstream(hostSentinel) << "sentinel";
+    bool threwEscapingTarget = false;
+    try {
+        __wrap_symlink("../../anyps5-host-sentinel.txt", (prefix + "escape-link").c_str());
+    } catch (const std::runtime_error&) {
+        threwEscapingTarget = true;
+    }
+    Require(threwEscapingTarget);
+    Require(!std::filesystem::exists(root / "escape-link"));
+    std::filesystem::remove(hostSentinel);
+    bool threwAbsoluteTarget = false;
+    try {
+        __wrap_symlink(pattern.c_str(), (prefix + "abs-link").c_str());
+    } catch (const std::runtime_error&) {
+        threwAbsoluteTarget = true;
+    }
+    Require(threwAbsoluteTarget);
+    std::array<char, 256> linkTarget{};
+    Require(__wrap_readlink(pattern.c_str(), linkTarget.data(), linkTarget.size()) == -1 && *__error_nid_postfix() == 22);
+    Require(__wrap_readlink("/anyps5-posix-test/missing-link", linkTarget.data(), linkTarget.size()) == -1 && *__error_nid_postfix() == 2);
+    Require(__wrap_symlink(relativeTarget.c_str(), relativeSymlinkPath.c_str()) == -1 && *__error_nid_postfix() == 17);
+    Require(__wrap_symlink(nullptr, relativeSymlinkPath.c_str()) == -1 && *__error_nid_postfix() == 14);
+    Require(__wrap_symlink(relativeTarget.c_str(), nullptr) == -1 && *__error_nid_postfix() == 14);
+    Require(__wrap_readlink(nullptr, linkTarget.data(), linkTarget.size()) == -1 && *__error_nid_postfix() == 14);
+    Require(__wrap_readlink(relativeSymlinkPath.c_str(), nullptr, linkTarget.size()) == -1 && *__error_nid_postfix() == 14);
+    Require(__wrap_readlink(relativeSymlinkPath.c_str(), linkTarget.data(), 0) == -1 && *__error_nid_postfix() == 22);
+    const std::string hardlinkPath = "/anyps5-posix-test/test-hardlink";
+    Require(__wrap_link(pattern.c_str(), hardlinkPath.c_str()) == 0);
+    FileStat hardlinkStatus{};
+    Require(__wrap_lstat(hardlinkPath.c_str(), &hardlinkStatus) == 0);
+    Require(hardlinkStatus.st_size == static_cast<std::int64_t>(sizeof(payload)));
+    Require(__wrap_link("/anyps5-posix-test/missing-link-source", "/anyps5-posix-test/new-link") == -1 && *__error_nid_postfix() == 2);
+    Require(__wrap_link(pattern.c_str(), pattern.c_str()) == -1 && *__error_nid_postfix() == 17);
+    Require(__wrap_link(nullptr, hardlinkPath.c_str()) == -1 && *__error_nid_postfix() == 14);
+    Require(__wrap_link(pattern.c_str(), nullptr) == -1 && *__error_nid_postfix() == 14);
     RemovePathAlias_nid_no_patch("/anyps5-posix-test");
     Require(std::filesystem::remove_all(root) > 0);
 }
