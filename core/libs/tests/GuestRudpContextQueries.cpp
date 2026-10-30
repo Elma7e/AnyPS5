@@ -45,5 +45,15 @@ int main() {
     Require(sceRudpGetSizeWritable(context) == invalidContext);
     Require(sceRudpGetSizeReadable(context) == invalidContext);
     Require(sceRudpEnd() == 0);
+    for (auto call : {sceRudpAccept, sceRudpFlush, sceRudpGetLocalInfo, sceRudpListen, sceRudpGetContextBufferStatus}) {
+        bool threw = false;
+        try {
+            call();
+        } catch (const std::exception& error) {
+            (void)error;
+            threw = true;
+        }
+        Require(threw);
+    }
     return 0;
 }
