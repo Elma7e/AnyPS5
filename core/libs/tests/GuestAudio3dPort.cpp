@@ -446,6 +446,34 @@ void CheckTerminate() {
     Require(Open(parameters, &id) == 0 && id == 0, "open after reinitialize");
     Require(sceAudio3dPortClose(0) == 0, "close after reinitialize");
     Require(sceAudio3dTerminate() == 0, "terminate after reinitialize");
+
+    for (auto call : {sceAudio3dPortOpenEx, sceAudio3dReportRegisterHandler, sceAudio3dReportUnregisterHandler}) {
+        bool threw = false;
+        try {
+            call();
+        } catch (const std::exception& error) {
+            (void)error;
+            threw = true;
+        }
+        Require(threw, "unknown signature audio3d export throws");
+    }
+    bool portDestroyThrew = false;
+    try {
+        sceAudio3dPortDestroy(0);
+    } catch (const std::exception& error) {
+        (void)error;
+        portDestroyThrew = true;
+    }
+    Require(portDestroyThrew, "sceAudio3dPortDestroy throws");
+
+    bool portGetStatusThrew = false;
+    try {
+        sceAudio3dPortGetStatus(0, nullptr);
+    } catch (const std::exception& error) {
+        (void)error;
+        portGetStatusThrew = true;
+    }
+    Require(portGetStatusThrew, "sceAudio3dPortGetStatus throws");
 }
 
 }
