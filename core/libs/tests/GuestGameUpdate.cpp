@@ -145,4 +145,5 @@ int main() {
     Require(sceGameUpdateCheck(0x20000000, &postParam, &postResult) == notInitialized);
     Require(sceGameUpdateAbortRequest(0x20000000) == notInitialized);
     Require(sceGameUpdateDeleteRequest(0x20000000) == notInitialized);
+    RequireThrows([] { sceGameUpdateCheckTitle(); });
 }
