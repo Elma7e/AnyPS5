@@ -3,10 +3,30 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include "cstdio"
+#include "stdexcept"
 
 namespace {
 
 void Require(bool value) { if (!value) std::abort(); }
+
+void Require(bool condition, const char* message) {
+    if (!condition) {
+        std::fprintf(stderr, "%s\n", message);
+        std::abort();
+    }
+}
+
+bool Throws(auto call) {
+    try {
+        call();
+    } catch (const std::runtime_error&) {
+        return true;
+    } catch (...) {
+        return false;
+    }
+    return false;
+}
 
 std::array<std::uint8_t, 0x28> Initialized(std::uint8_t fill) {
     std::array<std::uint8_t, 0x28> bytes{};
@@ -33,5 +53,13 @@ int main() {
 
     Require(sceEditMp4QueryMemSize() == 0x387d30);
     Require(sceEditMp4QueryMemSize() == 0x387d30);
+
+    Require(Throws([] { sceEditMp4Abort(); }), "sceEditMp4Abort did not throw");
+    Require(Throws([] { sceEditMp4Edit(); }), "sceEditMp4Edit did not throw");
+    Require(Throws([] { sceEditMp4GetStatus(); }), "sceEditMp4GetStatus did not throw");
+    Require(Throws([] { sceEditMp4Initialize(); }), "sceEditMp4Initialize did not throw");
+    Require(Throws([] { sceEditMp4SetFinishCallback(); }), "sceEditMp4SetFinishCallback did not throw");
+    Require(Throws([] { sceEditMp4Terminate(); }), "sceEditMp4Terminate did not throw");
+    Require(Throws([] { sceEditMp4Unite(); }), "sceEditMp4Unite did not throw");
     return 0;
 }
