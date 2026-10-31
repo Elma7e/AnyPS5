@@ -2,10 +2,21 @@
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <cstdint>
 #include <cstdlib>
+#include <stdexcept>
 
 namespace {
 
 void Require(bool value) { if (!value) std::abort(); }
+
+template <typename TFunction>
+bool ThrowsRuntimeError(TFunction function) {
+    try {
+        function();
+    } catch (const std::runtime_error&) {
+        return true;
+    }
+    return false;
+}
 
 constexpr int kStatusNone = 0;
 constexpr int kStatusInitialized = 1;
@@ -23,6 +34,8 @@ int main() {
     std::int32_t result[2] = {-1, -1};
 
     Require(sceGameCustomDataDialogTerminate() == kErrNotInitialized);
+    Require(ThrowsRuntimeError([] { sceGameCustomDataDialogOpen(); }));
+    Require(ThrowsRuntimeError([] { sceGameCustomDataDialogGetResult(); }));
     Require(sceGameCustomDataDialogOpenA(nullptr) == kErrNotInitialized);
     Require(sceGameCustomDataDialogOpenA(&param) == kErrNotInitialized);
     Require(sceGameCustomDataDialogClose() == kErrNotInitialized);
@@ -36,6 +49,8 @@ int main() {
     Require(sceGameCustomDataDialogGetStatus() == kStatusInitialized);
     Require(sceGameCustomDataDialogUpdateStatus() == kStatusInitialized);
 
+    Require(ThrowsRuntimeError([] { sceGameCustomDataDialogOpen(); }));
+    Require(ThrowsRuntimeError([] { sceGameCustomDataDialogGetResult(); }));
     Require(sceGameCustomDataDialogOpenA(nullptr) == kErrArgNull);
     Require(sceGameCustomDataDialogGetResultA(nullptr) == kErrArgNull);
     Require(sceGameCustomDataDialogGetResultA(result) == kErrNotFinished);
@@ -59,6 +74,7 @@ int main() {
 
     Require(sceGameCustomDataDialogInitialize() == 0);
     Require(sceGameCustomDataDialogUpdateStatus() == kStatusInitialized);
+    Require(sceGameCustomDataDialogGetResultA(nullptr) == kErrArgNull);
     Require(sceGameCustomDataDialogClose() == 0);
     Require(sceGameCustomDataDialogUpdateStatus() == kStatusFinished);
     result[0] = -1;
