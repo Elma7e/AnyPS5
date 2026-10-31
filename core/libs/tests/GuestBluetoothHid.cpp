@@ -94,6 +94,38 @@ int main() {
         threw = true;
     }
     Require(threw, "set feature report did not throw");
+    threw = false;
+    try {
+        sceBluetoothHidSetOutputReport(0, 0, nullptr, 0);
+
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    Require(threw, "set output report did not throw");
+    threw = false;
+    try {
+        sceBluetoothHidGetDeviceName(0, nullptr);
+
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    Require(threw, "get device name did not throw");
+    threw = false;
+    try {
+        sceBluetoothHidGetReportDescriptor(0, nullptr, 0);
+
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    Require(threw, "get report descriptor did not throw");
+    threw = false;
+    try {
+        sceBluetoothHidInterruptOutput(0, 0, nullptr, 0);
+
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    Require(threw, "interrupt output did not throw");
     Require(sceBluetoothHidUnregisterDevice(0x44f, 0x1000) == 0, "device unregistration failed");
     Require(sceBluetoothHidUnregisterCallback() == 0, "callback unregistration failed");
     Require(sceBluetoothHidUnregisterCallback() == noCallback, "duplicate callback unregistration");
