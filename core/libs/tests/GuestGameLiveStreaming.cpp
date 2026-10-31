@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
@@ -14,6 +15,24 @@ static_assert(sizeof(GameLiveStreamingStatus2) == 72);
 namespace {
 
 void Require(bool value) { if (!value) std::abort(); }
+
+void Require(bool value, const char* message) {
+    if (!value) {
+        std::fprintf(stderr, "%s\n", message);
+        std::abort();
+    }
+}
+
+bool ThrowsRuntimeError(auto call) {
+    try {
+        call();
+    } catch (const std::runtime_error&) {
+        return true;
+    } catch (...) {
+        return false;
+    }
+    return false;
+}
 
 constexpr std::int32_t kInvalidUserId = -1;
 
@@ -192,6 +211,32 @@ void CheckSeparateModeParameter() {
     for (std::size_t i = 0; i < parameter.size(); ++i) Require(parameter[i] == (i < 0x44 ? 0 : 0xaa));
 }
 
+void CheckUnimplementedStubs() {
+    Require(ThrowsRuntimeError(sceGameLiveStreamingScreenTerminate), "sceGameLiveStreamingScreenTerminate did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingScreenCloseSeparateMode), "sceGameLiveStreamingScreenCloseSeparateMode did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingScreenConfigureSeparateMode), "sceGameLiveStreamingScreenConfigureSeparateMode did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingScreenOpenSeparateMode), "sceGameLiveStreamingScreenOpenSeparateMode did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingScreenSetMode), "sceGameLiveStreamingScreenSetMode did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingSetServiceProviderPermission), "sceGameLiveStreamingSetServiceProviderPermission did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingSetDefaultServiceProviderPermission), "sceGameLiveStreamingSetDefaultServiceProviderPermission did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStartGenerateStandbyScreenResource), "sceGameLiveStreamingStartGenerateStandbyScreenResource did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStopGenerateStandbyScreenResource), "sceGameLiveStreamingStopGenerateStandbyScreenResource did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingRegisterCallback), "sceGameLiveStreamingRegisterCallback did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingUnregisterCallback), "sceGameLiveStreamingUnregisterCallback did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingCheckCallback), "sceGameLiveStreamingCheckCallback did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingSetStandbyScreenResource), "sceGameLiveStreamingSetStandbyScreenResource did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingGetCurrentBroadcastScreenLayout), "sceGameLiveStreamingGetCurrentBroadcastScreenLayout did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingLaunchLiveViewer), "sceGameLiveStreamingLaunchLiveViewer did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingLaunchLiveViewerA), "sceGameLiveStreamingLaunchLiveViewerA did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingSetGuardAreas), "sceGameLiveStreamingSetGuardAreas did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStartSocialFeedbackMessageFiltering), "sceGameLiveStreamingStartSocialFeedbackMessageFiltering did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStopSocialFeedbackMessageFiltering), "sceGameLiveStreamingStopSocialFeedbackMessageFiltering did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingApplySocialFeedbackMessageFilter), "sceGameLiveStreamingApplySocialFeedbackMessageFilter did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingSetLinkCommentPreset), "sceGameLiveStreamingSetLinkCommentPreset did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStartDebugBroadcast), "sceGameLiveStreamingStartDebugBroadcast did not throw std::runtime_error");
+    Require(ThrowsRuntimeError(sceGameLiveStreamingStopDebugBroadcast), "sceGameLiveStreamingStopDebugBroadcast did not throw std::runtime_error");
+}
+
 }
 
 int main() {
@@ -203,6 +248,7 @@ int main() {
     Require(EnableThrowsNotInitialized(true));
     CheckLifecycleFirst();
     CheckSeparateModeParameter();
+    CheckUnimplementedStubs();
     for (const std::size_t size : {0u, 1u, 0x3fffu, 0x4001u, 0x100000u}) Require(sceGameLiveStreamingInitialize(size) == invalidArgument);
     Require(sceGameLiveStreamingInitialize(0x4000) == 0);
     Require(sceGameLiveStreamingEnableLiveStreaming(true) == 0);
